@@ -1,0 +1,5 @@
+{
+  "name": "AI Student Scheduler",
+  "description": "An intelligent scheduler that helps college students decide what to work on next. The AI analyzes your pending tasks, past productivity, and current energy level to provide a smart, personalized suggestion for your next study session.",
+  "requestFramePermissions": []
+}
