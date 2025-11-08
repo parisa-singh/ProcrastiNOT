@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import type { ScheduleItem, WeeklySchedule } from '../types';
 import { BrainIcon } from './icons/BrainIcon';
 
@@ -7,13 +7,45 @@ interface ScheduleDisplayProps {
   schedule: WeeklySchedule | null;
   isLoading: boolean;
   error: string | null;
+  currentWeekStart: Date;
 }
 
 const START_HOUR = 7; // 7 AM
 const END_HOUR = 24; // 12 AM
 
-const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, error }) => {
+const colorPalette = [
+    'bg-purple-900/70 border-l-4 border-purple-500 hover:bg-purple-900',
+    'bg-indigo-900/70 border-l-4 border-indigo-500 hover:bg-indigo-900',
+    'bg-sky-900/70 border-l-4 border-sky-500 hover:bg-sky-900',
+    'bg-teal-900/70 border-l-4 border-teal-500 hover:bg-teal-900',
+    'bg-rose-900/70 border-l-4 border-rose-500 hover:bg-rose-900',
+    'bg-amber-900/70 border-l-4 border-amber-500 hover:bg-amber-900',
+];
+
+const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, error, currentWeekStart }) => {
+  const taskColorMap = useRef(new Map<string, string>());
+
+  useEffect(() => {
+    // When a new schedule is generated, clear the old color mappings
+    // to ensure colors are freshly assigned for the new set of tasks.
+    taskColorMap.current.clear();
+  }, [schedule]);
   
+  const getTaskColor = (task: string): string => {
+    // Normalize the task name to group related activities under one color.
+    // E.g., "Work on Hackathon" and "Submit Hackathon" both key to "hackathon".
+    const key = task.toLowerCase()
+      .replace(/^(work on|study for|finish|submit|prepare|review|read)\s/,'')
+      .split(/[:(]/)[0]
+      .trim();
+
+    if (!taskColorMap.current.has(key)) {
+        const nextColorIndex = taskColorMap.current.size % colorPalette.length;
+        taskColorMap.current.set(key, colorPalette[nextColorIndex]);
+    }
+    return taskColorMap.current.get(key)!;
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return (
@@ -44,17 +76,14 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, 
       );
     }
     
-    const daysOfWeek = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-    const scheduleKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as (keyof WeeklySchedule)[];
+    const daysOfWeek = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const scheduleKeys = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as (keyof WeeklySchedule)[];
     
     const today = new Date();
-    const currentDayOfWeek = today.getDay(); // 0 for Sunday, 1 for Monday
-    const dayOffset = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1; // 0 for Mon, 6 for Sun
-    const firstDayOfWeek = new Date(new Date().setDate(today.getDate() - dayOffset));
-
+    
     const weekDates = Array.from({ length: 7 }, (_, i) => {
-        const date = new Date(firstDayOfWeek);
-        date.setDate(firstDayOfWeek.getDate() + i);
+        const date = new Date(currentWeekStart);
+        date.setDate(currentWeekStart.getDate() + i);
         return date.getDate();
     });
 
@@ -66,7 +95,6 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, 
         try {
             const parts = timeStr.split(':').map(Number);
             const hours = parts[0];
-            // Default minutes to 0 if not provided (e.g., for "9" instead of "9:00")
             const minutes = parts.length > 1 ? parts[1] : 0;
 
             if (isNaN(hours) || isNaN(minutes)) {
@@ -76,7 +104,6 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, 
             const totalMinutes = (hours * 60) + minutes;
             const startMinutes = START_HOUR * 60;
             
-            // Calculate the number of 15-minute intervals from the start of the day's view
             return Math.floor((totalMinutes - startMinutes) / 15) + 1;
         } catch (e) {
             console.error("Failed to parse time:", timeStr, e);
@@ -85,79 +112,119 @@ const ScheduleDisplay: React.FC<ScheduleDisplayProps> = ({ schedule, isLoading, 
     };
 
     return (
-        <div className="grid" 
+        <div 
+            className="grid"
             style={{
                 gridTemplateColumns: '60px repeat(7, 1fr)',
                 gridTemplateRows: `auto repeat(${totalContentRows}, 1fr)`
             }}
         >
-            {/* Top-left empty cell */}
-            <div className="sticky top-0 z-30 bg-slate-800 border-b-2 border-slate-700"></div>
+            {/* ----- HEADERS (ROW 1) ----- */}
+            <div className="sticky top-0 z-20 bg-slate-800 border-b-2 border-r border-slate-700/50" style={{ gridColumn: 1, gridRow: 1 }}></div>
+            {daysOfWeek.map((day, index) => {
+                const columnDate = new Date(currentWeekStart);
+                columnDate.setDate(currentWeekStart.getDate() + index);
 
-            {/* Day Headers */}
-            {daysOfWeek.map((day, index) => (
-                <div key={day} className="text-center font-bold text-indigo-300 pb-2 border-b-2 border-slate-700 sticky top-0 z-20 bg-slate-800 p-2 flex flex-col justify-center">
-                    <div>{day}</div>
-                    <div className="text-sm text-slate-400 font-normal">{weekDates[index]}</div>
+                const isToday = today.getFullYear() === columnDate.getFullYear() &&
+                                today.getMonth() === columnDate.getMonth() &&
+                                today.getDate() === columnDate.getDate();
+
+                return (
+                    <div key={day} 
+                        className="text-center font-bold pb-2 border-b-2 border-slate-700 border-r border-slate-700/50 last:border-r-0 sticky top-0 z-10 bg-slate-800 p-2 flex flex-col justify-center"
+                        style={{ gridColumn: index + 2, gridRow: 1 }}
+                    >
+                        <div className={isToday ? 'text-indigo-300' : 'text-slate-300'}>{day}</div>
+                        <div className={`text-sm font-normal rounded-full w-6 h-6 flex items-center justify-center mx-auto mt-1 ${isToday ? 'bg-indigo-500 text-white' : 'text-slate-400'}`}>
+                            {weekDates[index]}
+                        </div>
+                    </div>
+                );
+            })}
+            
+            {/* ----- TIME GUTTER LABELS (COLUMN 1) ----- */}
+            {timeSlots.map((hour) => (
+                <div
+                    key={`time-label-${hour}`}
+                    className="relative text-right"
+                    style={{
+                        gridColumn: 1,
+                        gridRow: (hour - START_HOUR) * 4 + 1,
+                    }}
+                >
+                    <span className="text-sm text-slate-500 pr-2 absolute -top-2 right-0">
+                        {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
+                    </span>
                 </div>
             ))}
             
-            {/* Time Gutter & Horizontal Lines Overlay */}
-            <div className="col-start-1 col-end-[-1] row-start-2 row-end-[-1] grid" style={{gridTemplateColumns: '60px 1fr'}}>
-                {/* Horizontal lines for the entire area, sitting at the back */}
-                <div className="grid h-full col-start-1 row-start-1 col-span-2" style={{gridTemplateRows: `repeat(${totalContentRows}, 1fr)`}}>
-                    {Array.from({length: totalContentRows}).map((_, i) => (
-                        <div key={i} className="border-b border-slate-700/50"></div>
-                    ))}
-                </div>
-                
-                {/* Time Gutter labels, in the first column, on top of horizontal lines */}
-                <div className="grid h-full col-start-1 row-start-1" style={{gridTemplateRows: `repeat(${totalContentRows}, 1fr)`}}>
-                     {timeSlots.map((hour, index) => (
-                        <div
-                            key={hour}
-                            className="text-right pr-2 text-sm text-slate-500 relative -top-[10px] border-r border-slate-700/50"
-                            style={{ gridRowStart: index * 4 + 1 }}
-                        >
-                            {hour === 12 ? '12 PM' : hour > 12 ? `${hour - 12} PM` : `${hour} AM`}
-                        </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Vertical Grid Lines */}
-             <div className="col-start-2 col-end-[-1] row-start-1 row-end-[-1] grid grid-cols-7">
-                {Array.from({length: 7}).map((_, i) => (
-                    <div key={i} className="border-r border-slate-700/50"></div>
+            {/* ----- BACKGROUND GRID LINES ----- */}
+            <div 
+                className="col-start-1 col-end-[-1] row-start-2 row-end-[-1] grid grid-cols-subgrid grid-rows-subgrid pointer-events-none -z-10"
+            >
+                {/* Horizontal Lines */}
+                {Array.from({ length: totalContentRows }).map((_, i) => (
+                    <div 
+                        key={`h-line-${i}`} 
+                        className="col-span-full border-b border-slate-700/50" 
+                        style={{ gridRow: i + 1 }}
+                    />
+                ))}
+                {/* Vertical Lines */}
+                {Array.from({ length: 7 }).map((_, i) => (
+                    <div 
+                        key={`v-line-${i}`} 
+                        className="row-span-full border-r border-slate-700/50"
+                        style={{ gridColumn: i + 1 }}
+                    />
                 ))}
             </div>
 
-
-            {/* Schedule Items */}
+            {/* ----- SCHEDULE ITEMS (Placed on top of main grid) ----- */}
             {scheduleKeys.map((dayKey, dayIndex) => (
                 (schedule[dayKey] || []).map((item, itemIndex) => {
                     const [startTime, endTime] = item.time.replace(/\s/g, '').split('-');
-                    if (!startTime || !endTime) return null;
+                    
+                    const isValidTime = (timeStr: string) => /^\d{1,2}(:\d{2})?$/.test(timeStr);
+
+                    if (!startTime || !isValidTime(startTime)) {
+                        console.warn(`Skipping event with invalid start time: ${item.time}`);
+                        return null;
+                    }
                     
                     const rowStart = timeToRow(startTime);
-                    const rowEnd = timeToRow(endTime);
+                    let rowEnd;
+
+                    if (endTime && isValidTime(endTime)) {
+                        rowEnd = timeToRow(endTime);
+                    } else {
+                        rowEnd = rowStart + 4; 
+                    }
+                    
                     const durationInRows = rowEnd - rowStart;
                     
-                    if (durationInRows <= 0) return null; // Don't render invalid or zero-duration tasks
+                    if (durationInRows <= 0) {
+                        console.warn(`Skipping event with zero or negative duration: ${item.time}`);
+                        return null;
+                    }
 
-                    const gridRowStart = rowStart + 1; // +1 for header row
-                    const gridColumn = dayIndex + 2; // +1 for time gutter column
+                    const gridRowStart = rowStart + 1;
+                    const gridColumn = dayIndex + 2;
 
-                    const colors = {
-                        study: 'bg-indigo-900/70 border-l-4 border-indigo-500 hover:bg-indigo-900',
+                    const staticColors = {
                         break: 'bg-emerald-900/70 border-l-4 border-emerald-500 hover:bg-emerald-900',
                         other: 'bg-slate-700/70 border-l-4 border-slate-500 hover:bg-slate-700',
                     };
 
+                    const itemColorClass = (item.type === 'study' || item.type === 'deadline_work')
+                        ? getTaskColor(item.task)
+                        : staticColors[item.type] || staticColors.other;
+
+
                     return (
                         <div
                             key={`${dayKey}-${itemIndex}`}
-                            className={`p-1.5 rounded overflow-hidden z-10 m-px flex flex-col justify-center transition-colors ${colors[item.type] || colors.other}`}
+                            className={`p-1.5 rounded overflow-hidden z-10 m-px flex flex-col justify-center transition-colors ${itemColorClass}`}
                             style={{
                                 gridRow: `${gridRowStart} / span ${durationInRows}`,
                                 gridColumn: gridColumn,

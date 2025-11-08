@@ -16,7 +16,7 @@ const scheduleItemSchema = {
       },
       type: {
         type: Type.STRING,
-        description: "The type of activity: 'study', 'break', or 'other'.",
+        description: "The type of activity: 'study' for a regular task, 'deadline_work' for a study session specifically for a task with a deadline, 'break' for rest, or 'other' for an existing calendar event.",
       },
     },
     required: ["time", "task", "type"],
@@ -25,15 +25,15 @@ const scheduleItemSchema = {
 const responseSchema = {
   type: Type.OBJECT,
   properties: {
+    sunday: { type: Type.ARRAY, items: scheduleItemSchema },
     monday: { type: Type.ARRAY, items: scheduleItemSchema },
     tuesday: { type: Type.ARRAY, items: scheduleItemSchema },
     wednesday: { type: Type.ARRAY, items: scheduleItemSchema },
     thursday: { type: Type.ARRAY, items: scheduleItemSchema },
     friday: { type: Type.ARRAY, items: scheduleItemSchema },
     saturday: { type: Type.ARRAY, items: scheduleItemSchema },
-    sunday: { type: Type.ARRAY, items: scheduleItemSchema },
   },
-  required: ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"],
+  required: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"],
 };
 
 function formatTasks(tasks: ToDoTask[]): string {
@@ -71,7 +71,7 @@ export async function generateWeeklySchedule(
   calendarEvents: CalendarEvent[]
 ): Promise<WeeklySchedule> {
   const prompt = `
-    You are an expert academic coach and weekly planner for a college student. Your task is to create a personalized, effective, and empathetic 7-day study schedule.
+    You are an expert academic coach and weekly planner for a college student. Your task is to create a personalized, effective, and empathetic 7-day study schedule, starting from Sunday.
 
     **Current User State:**
     - Today's Mood: ${mood}
@@ -87,11 +87,11 @@ export async function generateWeeklySchedule(
 
     **Instructions:**
     1.  **Analyze and Empathize:** Acknowledge the user's current mood and energy. If energy is low, start today's schedule gently. If they're stressed, build in more breaks. If excited, leverage that momentum on important tasks.
-    2.  **Prioritize & Schedule Around Commitments:** Plan the entire week. Crucially, you must block out time for the user's existing commitments from their calendar and schedule all study sessions and breaks around them. Pay close attention to items marked as DEADLINE and schedule them to be completed well before they are due. Then, schedule the highest importance tasks. Distribute tasks logically across the 7 days.
+    2.  **Prioritize & Schedule Around Commitments:** Plan the entire week starting from Sunday. Crucially, you must block out time for the user's existing commitments from their calendar and schedule all study sessions and breaks around them. Pay close attention to items marked as DEADLINE and schedule them to be completed well before they are due. When you schedule a study block for a DEADLINE task, you MUST use the type 'deadline_work' for that schedule item. Then, schedule the highest importance tasks. Distribute tasks logically across the 7 days.
     3.  **Balance:** Distribute the weekly study goal across the week. Avoid overloading any single day. Factor in that weekends might be for lighter work or catching up.
     4.  **Structure:** Create a daily plan with focused study blocks (45-60 mins) and regular short breaks (10-15 mins). Include a longer lunch break.
     5.  **Be Realistic:** The schedule must be achievable. Don't schedule back-to-back heavy cognitive tasks. Alternate between different subjects or types of work. Do not schedule tasks that overlap with existing calendar commitments.
-    6.  **Output:** Return a complete 7-day schedule as a JSON object that strictly adheres to the provided schema, with keys for "monday" through "sunday". Ensure every day has a schedule, even if it's just "Rest Day" or light work.
+    6.  **Output:** Return a complete 7-day schedule as a JSON object that strictly adheres to the provided schema, with keys for "sunday" through "saturday". Ensure every day has a schedule, even if it's just "Rest Day" or light work.
     `;
 
   try {

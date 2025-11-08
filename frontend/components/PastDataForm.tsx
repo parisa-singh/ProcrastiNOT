@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import type { StudyLogEntry, EnergyLevel } from '../types';
 import { PlusIcon } from './icons/PlusIcon';
