@@ -68,10 +68,14 @@ export async function generateWeeklySchedule(
   weeklyGoal: number,
   mood: Mood,
   energyLevel: number, // 0-100
-  calendarEvents: CalendarEvent[]
+  calendarEvents: CalendarEvent[],
+  weekStartDate: string
 ): Promise<WeeklySchedule> {
-  const prompt = `
+
+const prompt = `
     You are an expert academic coach and weekly planner for a college student. Your task is to create a personalized, effective, and empathetic 7-day study schedule, starting from Sunday.
+
+    The schedule you generate MUST be aligned with the week that begins on this exact date (ISO format): ${weekStartDate}
 
     **Current User State:**
     - Today's Mood: ${mood}

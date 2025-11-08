@@ -17,6 +17,17 @@ import MoodTracker from './components/MoodTracker';
 import StudyLogForm from './components/PastDataForm';
 import { TrashIcon } from './components/icons/TrashIcon';
 
+const [theme, setTheme] = useState<{
+    primary: string;
+    surface: string;
+    text: string;
+}>({
+    primary: 'bg-indigo-600',
+    surface: 'bg-slate-800',
+    text: 'text-slate-200'
+});
+
+
 // --- helpers ---
 const getStartOfWeek = (date: Date): Date => {
   const d = new Date(date);
@@ -158,16 +169,40 @@ function App() {
 
   // today + mood/energy
   const todayString = new Date().toISOString().split('T')[0];
+  const [checkinDate, setCheckinDate] = useState<string>(todayString);
+  
+  const prevDay = () => {
+    const d = new Date(checkinDate);
+    d.setDate(d.getDate() - 1);
+    setCheckinDate(d.toISOString().split('T')[0]);
+  };
+
+  const nextDay = () => {
+    const d = new Date(checkinDate);
+    d.setDate(d.getDate() + 1);
+
+    const tomorrowString = d.toISOString().split('T')[0];
+
+    if (tomorrowString > todayString) return; // ← block future days
+
+    setCheckinDate(tomorrowString);
+  };
+
+
   const [mood, setMood] = useState<Mood>('Neutral');
   const [energyLevel, setEnergyLevel] = useState<number>(50);
 
   useEffect(() => {
-    const todayLog = dailyLogs.find((log) => log.date === todayString);
-    if (todayLog) {
-      setMood(todayLog.mood);
-      setEnergyLevel(todayLog.energy);
+    const log = dailyLogs.find(l => l.date === checkinDate);
+    if (log) {
+      setMood(log.mood);
+      setEnergyLevel(log.energy);
+    } else {
+      // no entry for that day yet — pick your defaults
+      setMood('Neutral');
+      setEnergyLevel(50);
     }
-  }, [dailyLogs, todayString]);
+  }, [checkinDate, dailyLogs]);
 
   const filterEventsForWeek = (events: CalendarEvent[], weekStart: Date) => {
     const start = new Date(weekStart);
@@ -175,10 +210,11 @@ function App() {
     end.setDate(end.getDate() + 7);
 
     return events.filter(ev => {
-        const evDate = new Date(ev.start.dateTime || ev.start.date);
-        return evDate >= start && evDate < end;
+      const evDate = new Date(ev.startTime);
+      return evDate >= start && evDate < end;
     });
-};
+  };
+
 
 
   // ---------- Auth + Sync flow ----------
@@ -197,8 +233,10 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
       weeklyGoal,
       mood,
       energyLevel,
-      weekEvents
-    );
+      weekEvents,
+      currentWeekStart.toISOString() 
+    )
+
 
     setSchedule(generatedSchedule);
     return generatedSchedule;
@@ -228,12 +266,20 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
       }
 
       // already authenticated → fetch events
-      const events = await fetch('http://localhost:5000/events').then((r) => r.json());
-      setCalendarEvents(events);
+      const rawEvents: any[] = await fetch("http://localhost:5000/events").then(r => r.json());
+
+      const mappedEvents = rawEvents.map((e: any) => ({
+      title: e.summary ?? "Untitled Event",
+      startTime: e.start?.dateTime ?? e.start?.date ?? "",
+      endTime: e.end?.dateTime ?? e.end?.date ?? "",
+      }));
+
+      setCalendarEvents(mappedEvents);
       setIsCalendarSynced(true);
 
+
       // immediately regenerate a schedule with real events
-      await handleGenerateSchedule(events);
+      await handleGenerateSchedule(mappedEvents);
     } catch {
       setError('Failed to sync calendar.');
     } finally {
@@ -242,6 +288,8 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
   };
 
   // ---------- CRUD + other handlers ----------
+  // handles checking-in for ANY selected day, not just today
+
   const addTask = (task: Omit<ToDoTask, 'id' | 'completed'>) => {
     setTasks((prev) => [...prev, { ...task, id: uuidv4(), completed: false }]);
   };
@@ -262,14 +310,14 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
     setStudyLogs((prev) => prev.filter((l) => l.id !== id));
   };
 
-  const handleDailyCheckin = (newMood: Mood, newEnergy: number) => {
-    setMood(newMood);
-    setEnergyLevel(newEnergy);
-    setDailyLogs((prev) => {
-      const otherLogs = prev.filter((log) => log.date !== todayString);
-      return [...otherLogs, { date: todayString, mood: newMood, energy: newEnergy }];
+// handles checking-in for ANY selected day, not just today
+  const handleDailyCheckinForDate = (date: string, newMood: Mood, newEnergy: number) => {
+    setDailyLogs(prev => {
+    const otherLogs = prev.filter(log => log.date !== date);
+    return [...otherLogs, { date, mood: newMood, energy: newEnergy }];
     });
   };
+
 
   const handleGetFeedback = async () => {
     setIsFeedbackLoading(true);
@@ -361,6 +409,7 @@ const handleGoToToday = () => {
                     >
                       ‹
                     </button>
+
                     <button
                       onClick={handleGoToToday}
                       className="text-sm font-semibold hover:text-indigo-400 transition-colors px-2 whitespace-nowrap"
@@ -441,6 +490,33 @@ const handleGoToToday = () => {
 
             {/* Sidebar */}
             <div className="lg:order-2 space-y-4 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                <button
+                onClick={() => {
+                const d = new Date(checkinDate);
+                d.setDate(d.getDate() - 1);
+                setCheckinDate(d.toISOString().split('T')[0]);
+                }}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+            >
+                ‹
+            </button>
+
+            <span className="font-semibold text-indigo-300 text-sm">
+                {new Date(checkinDate).toLocaleDateString()}
+            </span>
+
+            <button
+                onClick={() => {
+                const d = new Date(checkinDate);
+                d.setDate(d.getDate() + 1);
+                setCheckinDate(d.toISOString().split('T')[0]);
+                }}
+                className="px-3 py-1 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm"
+            >
+                ›
+            </button>
+            </div>
               <div className="flex bg-slate-800 p-1 rounded-lg border border-slate-700">
                 <button
                   onClick={() => setActiveTab('checkin')}
@@ -470,8 +546,15 @@ const handleGoToToday = () => {
 
               <div className="flex-grow">
                 {activeTab === 'checkin' && (
-                  <MoodTracker mood={mood} energy={energyLevel} onCheckin={handleDailyCheckin} dailyLogs={dailyLogs} />
-                )}
+                    <MoodTracker
+                      mood={mood}
+                      energy={energyLevel}
+                      onCheckin={(m, e) => handleDailyCheckinForDate(checkinDate, m, e)}
+                      dailyLogs={dailyLogs}
+                      disabled={checkinDate > todayString}
+                    />
+                    )}
+
                 {activeTab === 'tasks' && (
                   <TaskList
                     tasks={tasks}
@@ -503,6 +586,21 @@ const handleGoToToday = () => {
           <div className="max-w-[90rem] mx-auto">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-2xl font-bold text-slate-100">Details View</h2>
+              <div className="flex gap-2">
+                <button
+                    onClick={() => setTheme({ primary:'bg-indigo-600', surface:'bg-slate-800', text:'text-slate-200' })}
+                    className="w-6 h-6 rounded-full bg-indigo-600 border border-white"
+                />
+                <button
+                    onClick={() => setTheme({ primary:'bg-pink-500', surface:'bg-zinc-900', text:'text-pink-50' })}
+                    className="w-6 h-6 rounded-full bg-pink-500 border border-white"
+                />
+                <button
+                    onClick={() => setTheme({ primary:'bg-emerald-600', surface:'bg-gray-900', text:'text-emerald-50' })}
+                    className="w-6 h-6 rounded-full bg-emerald-600 border border-white"
+                />
+                </div>
+
               <button
                 onClick={() => setCurrentView('main')}
                 className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-semibold transition-colors flex items-center gap-2"
@@ -512,7 +610,7 @@ const handleGoToToday = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              <MoodTracker mood={mood} energy={energyLevel} onCheckin={handleDailyCheckin} dailyLogs={dailyLogs} />
+              <MoodTracker mood={mood} energy={energyLevel} onCheckin={(m,e) => handleDailyCheckinForDate(checkinDate, m, e)} dailyLogs={dailyLogs} />
               <TaskList
                 tasks={tasks}
                 onAddTask={addTask}
