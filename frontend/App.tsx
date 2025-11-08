@@ -17,16 +17,6 @@ import MoodTracker from './components/MoodTracker';
 import StudyLogForm from './components/PastDataForm';
 import { TrashIcon } from './components/icons/TrashIcon';
 
-const [theme, setTheme] = useState<{
-    primary: string;
-    surface: string;
-    text: string;
-}>({
-    primary: 'bg-indigo-600',
-    surface: 'bg-slate-800',
-    text: 'text-slate-200'
-});
-
 
 // --- helpers ---
 const getStartOfWeek = (date: Date): Date => {
@@ -145,6 +135,17 @@ const StudyLogView: React.FC<StudyLogViewProps> = ({
 };
 
 function App() {
+
+  const [theme, setTheme] = useState<{
+    primary: string;
+    surface: string;
+    text: string;
+  }>({
+    primary: 'bg-indigo-600',
+    surface: 'bg-slate-800',
+    text: 'text-slate-200'
+  });
+
   // persistent user data
   const [tasks, setTasks] = useLocalStorage<ToDoTask[]>('tasks', []);
   const [weeklyGoal, setWeeklyGoal] = useLocalStorage<number>('weeklyGoal', 20);
@@ -204,6 +205,11 @@ function App() {
     }
   }, [checkinDate, dailyLogs]);
 
+  useEffect(() => {
+  handleGenerateSchedule();
+  }, [currentWeekStart, calendarEvents]);
+
+
   const filterEventsForWeek = (events: CalendarEvent[], weekStart: Date) => {
     const start = new Date(weekStart);
     const end = new Date(weekStart);
@@ -252,40 +258,36 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
 };
 
   const syncGoogleCalendar = async () => {
-    setIsSyncing(true);
-    setError(null);
+  setIsSyncing(true);
+  setError(null);
 
-    try {
-      // ask backend whether tokens already exist
-      const status = await fetch('http://localhost:5000/auth/status').then((r) => r.json());
+  try {
+    const status = await fetch('http://localhost:5000/auth/status').then((r) => r.json());
 
-      if (!status.authenticated) {
-        // first-time auth → redirect to Google OAuth
-        window.location.href = 'http://localhost:5000/auth/google';
-        return; // stop execution; browser navigates away
-      }
+    if (!status.authenticated) {
+      window.location.href = 'http://localhost:5000/auth/google';
+      return;
+    }
 
-      // already authenticated → fetch events
-      const rawEvents: any[] = await fetch("http://localhost:5000/events").then(r => r.json());
+    const rawEvents: any[] = await fetch("http://localhost:5000/events").then(r => r.json());
 
-      const mappedEvents = rawEvents.map((e: any) => ({
-      title: e.summary ?? "Untitled Event",
-      startTime: e.start?.dateTime ?? e.start?.date ?? "",
-      endTime: e.end?.dateTime ?? e.end?.date ?? "",
-      }));
+    const mappedEvents = rawEvents.map((e: any) => ({
+        title: e.summary ?? "Untitled Event",
+        startTime: e.start?.dateTime ?? e.start?.date ?? "",
+        endTime: e.end?.dateTime ?? e.end?.date ?? "",
+    }));
 
-      setCalendarEvents(mappedEvents);
-      setIsCalendarSynced(true);
+    // set state — do NOT generate schedule directly here
+    setCalendarEvents(mappedEvents);
+    setIsCalendarSynced(true);
 
-
-      // immediately regenerate a schedule with real events
-      await handleGenerateSchedule(mappedEvents);
     } catch {
       setError('Failed to sync calendar.');
     } finally {
       setIsSyncing(false);
     }
   };
+
 
   // ---------- CRUD + other handlers ----------
   // handles checking-in for ANY selected day, not just today
