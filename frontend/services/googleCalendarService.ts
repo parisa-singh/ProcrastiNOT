@@ -1,104 +1,66 @@
 import type { CalendarEvent } from "../types";
 
-// This is a placeholder for the real Google API client.
-// In a real app, you would initialize this after the gapi script loads.
+// Make sure the Google API script is loaded in your index.html
 declare const gapi: any;
 
+const GOOGLE_API_KEY = "AIzaSyBN3nfW4lOFVcYbezahbQf2NJTB23reNps";
+const GOOGLE_CLIENT_ID = "130585006173-jp9jqk6mfifg6e0vq6el50er4m4bb2c4.apps.googleusercontent.com";
+const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
+
 /**
- * Initiates the Google Sign-In and fetches calendar events for the upcoming week.
- * 
- * NOTE: This is a MOCK implementation. To make it real, you would need to:
- * 1. Set up a project in the Google Cloud Console.
- * 2. Enable the Google Calendar API.
- * 3. Create OAuth 2.0 Client ID credentials.
- * 4. Replace the mock data logic with actual `gapi` calls as commented below.
+ * Sign in with Google and fetch the next 7 days of calendar events.
  */
 export async function signInAndFetchEvents(): Promise<CalendarEvent[]> {
-    console.log("Attempting to sync with Google Calendar...");
-
-    // --- REAL IMPLEMENTATION EXAMPLE ---
-    /*
-    const GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
-    const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID';
-    const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-    const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
-
+    
+    console.log("gapi is:", typeof gapi);
+    
     return new Promise((resolve, reject) => {
-        gapi.load('client:auth2', () => {
-            gapi.client.init({
-                apiKey: GOOGLE_API_KEY,
-                clientId: GOOGLE_CLIENT_ID,
-                discoveryDocs: DISCOVERY_DOCS,
-                scope: SCOPES,
-            }).then(() => {
-                if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
-                    gapi.auth2.getAuthInstance().signIn();
-                }
-                
-                const timeMin = new Date().toISOString();
-                const timeMax = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        // Load the client and auth2 modules
+        gapi.load("client:auth2", async () => {
+            try {
+                // Initialize the Google API client
+                await gapi.client.init({
+                    apiKey: GOOGLE_API_KEY,
+                    clientId: GOOGLE_CLIENT_ID,
+                    discoveryDocs: DISCOVERY_DOCS,
+                    scope: SCOPES,
+                });
 
-                gapi.client.calendar.events.list({
-                    'calendarId': 'primary',
-                    'timeMin': timeMin,
-                    'timeMax': timeMax,
-                    'showDeleted': false,
-                    'singleEvents': true,
-                    'maxResults': 20,
-                    'orderBy': 'startTime'
-                }).then(response => {
-                    const events = response.result.items.map(event => ({
-                        title: event.summary,
-                        startTime: event.start.dateTime || event.start.date,
-                        endTime: event.end.dateTime || event.end.date,
-                    }));
-                    resolve(events);
-                }).catch(reject);
-            }).catch(reject);
+                const authInstance = gapi.auth2.getAuthInstance();
+
+                // Sign in if not already signed in
+                if (!authInstance.isSignedIn.get()) {
+                    await authInstance.signIn();
+                }
+
+                // Define time range: now to 7 days from now
+                const now = new Date();
+                const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+                // Fetch calendar events
+                const response = await gapi.client.calendar.events.list({
+                    calendarId: "primary",
+                    timeMin: now.toISOString(),
+                    timeMax: nextWeek.toISOString(),
+                    showDeleted: false,
+                    singleEvents: true,
+                    maxResults: 50,
+                    orderBy: "startTime",
+                });
+
+                // Map the API response to your CalendarEvent type
+                const events: CalendarEvent[] = response.result.items.map((event: any) => ({
+                    title: event.summary || "No Title",
+                    startTime: event.start.dateTime || event.start.date,
+                    endTime: event.end.dateTime || event.end.date,
+                }));
+
+                resolve(events);
+            } catch (error) {
+                console.error("Error fetching Google Calendar events:", error);
+                reject(error);
+            }
         });
     });
-    */
-    
-    // --- MOCK IMPLEMENTATION ---
-    // Simulating a network delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
-
-    console.log("Using mock calendar data for demonstration.");
-
-    const today = new Date();
-    const getNextDayOfWeek = (date: Date, dayOfWeek: number) => { // 0=Sunday, 1=Monday, ...
-        const resultDate = new Date(date.getTime());
-        const currentDay = date.getDay();
-        const distance = (dayOfWeek - currentDay + 7) % 7;
-        resultDate.setDate(date.getDate() + distance);
-        if (distance === 0 && resultDate.getTime() < date.getTime()) {
-             resultDate.setDate(date.getDate() + 7);
-        }
-        return resultDate;
-    }
-
-    const mockEvents: CalendarEvent[] = [
-        {
-            title: "Data Structures Lecture",
-            startTime: new Date(getNextDayOfWeek(today, 1).setHours(10, 0, 0, 0)).toISOString(),
-            endTime: new Date(getNextDayOfWeek(today, 1).setHours(11, 30, 0, 0)).toISOString(),
-        },
-        {
-            title: "Team Project Meeting",
-            startTime: new Date(getNextDayOfWeek(today, 2).setHours(15, 0, 0, 0)).toISOString(),
-            endTime: new Date(getNextDayOfWeek(today, 2).setHours(16, 0, 0, 0)).toISOString(),
-        },
-        {
-            title: "Dentist Appointment",
-            startTime: new Date(getNextDayOfWeek(today, 3).setHours(14, 0, 0, 0)).toISOString(),
-            endTime: new Date(getNextDayOfWeek(today, 3).setHours(14, 30, 0, 0)).toISOString(),
-        },
-         {
-            title: "Data Structures Lecture",
-            startTime: new Date(getNextDayOfWeek(today, 3).setHours(10, 0, 0, 0)).toISOString(),
-            endTime: new Date(getNextDayOfWeek(today, 3).setHours(11, 30, 0, 0)).toISOString(),
-        },
-    ];
-
-    return Promise.resolve(mockEvents);
 }

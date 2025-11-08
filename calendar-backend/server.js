@@ -16,6 +16,14 @@ const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_REDIRECT_URI
 );
 
+app.get("/auth/status", (req, res) => {
+  if (oauth2Client.credentials && oauth2Client.credentials.access_token) {
+    return res.json({ authenticated: true });
+  }
+  res.json({ authenticated: false });
+});
+
+
 app.get("/auth/google", (req, res) => {
   const url = oauth2Client.generateAuthUrl({
     access_type: "offline",
@@ -29,7 +37,7 @@ app.get("/oauth2callback", async (req, res) => {
   try {
     const { tokens } = await oauth2Client.getToken(code);
     oauth2Client.setCredentials(tokens);
-    res.send("✅ Google Calendar connected! You can close this tab.");
+    res.redirect("http://localhost:3000");
   } catch (error) {
     console.error(error);
     res.status(500).send("❌ Error connecting to Google Calendar.");

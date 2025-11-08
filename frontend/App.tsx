@@ -192,25 +192,37 @@ function App() {
     }
   };
 
-  const syncGoogleCalendar = async () => {
-    setIsSyncing(true);
-    setError(null);
-    try {
-      const events = await signInAndFetchEvents();
-      setCalendarEvents(events);
-      setIsCalendarSynced(true);
-      // Now, immediately generate the schedule with the new events
-      await handleGenerateSchedule(events);
-    } catch (err) {
-      if (err instanceof Error) {
-        setError(`Failed to sync calendar: ${err.message}`);
-      } else {
-        setError('An unknown error occurred during calendar sync.');
-      }
-    } finally {
-      setIsSyncing(false);
+const syncGoogleCalendar = async () => {
+  setIsSyncing(true);
+  setError(null);
+
+  try {
+    // check if backend already has tokens
+    const authStatus = await fetch("http://localhost:5000/auth/status").then(r => r.json());
+
+    if (!authStatus.authenticated) {
+      // first time — redirect to google login
+      window.location.href = "http://localhost:5000/auth/google";
+      return; // IMPORTANT: stop here
     }
-  };
+
+    // already authenticated — fetch events
+    const events = await fetch("http://localhost:5000/events").then(r => r.json());
+    setCalendarEvents(events);
+    setIsCalendarSynced(true);
+    await handleGenerateSchedule(events);
+
+  } catch (err) {
+    if (err instanceof Error) {
+      setError(`Failed to sync calendar: ${err.message}`);
+    } else {
+      setError("An unknown error occurred during calendar sync.");
+    }
+  } finally {
+    setIsSyncing(false);
+  }
+};
+
   
   const handleGetFeedback = async () => {
     setIsFeedbackLoading(true);
