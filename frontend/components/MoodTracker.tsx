@@ -66,7 +66,7 @@ const WeeklyMoodChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
     <div>
       <h3 className="text-lg font-semibold text-slate-200 mb-2 text-center">Weekly Mood</h3>
       <div className="flex gap-2">
-        <div className="flex flex-col-reverse justify-between h-32 text-lg text-center py-1 w-8">
+        <div className="flex flex-col justify-between h-32 text-lg text-center py-1 w-8">
           {reversedMoods.map((m) => (
             <span key={m.name}>{m.emoji}</span>
           ))}

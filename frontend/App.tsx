@@ -398,8 +398,12 @@ const handleGoToToday = () => {
       <header className="py-5 px-8 bg-slate-900/80 backdrop-blur-sm border-b border-slate-800">
         <div className="max-w-[90rem] mx-auto flex items-center justify-between">
           <h1 className="text-xl font-bold text-slate-100 flex items-center gap-3">
-            <BrainIcon className="w-7 h-7 text-indigo-400" />
-            <span>Gemini Weekly Planner</span>
+            <img
+              src="/computer.png"
+              alt="ProcrastiNOT Logo"
+              className="w-20 h-20 rounded-md"
+            />
+            <span>ProcrastiNOT</span>
           </h1>
           {currentView === 'main' && (
             <button
