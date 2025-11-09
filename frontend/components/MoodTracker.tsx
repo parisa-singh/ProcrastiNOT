@@ -1,28 +1,29 @@
 import React from 'react';
 import type { Mood, DailyLog } from '../types';
 
-const MOODS: { name: Mood, emoji: string }[] = [
-  { name: 'Excited', emoji: '🤩' },
-  { name: 'Happy', emoji: '😊' },
-  { name: 'Neutral', emoji: '😐' },
-  { name: 'Sad', emoji: '😢' },
+const MOODS: { name: Mood; emoji: string }[] = [
   { name: 'Stressed', emoji: '🤯' },
+  { name: 'Sad', emoji: '😢' },
+  { name: 'Neutral', emoji: '😐' },
+  { name: 'Happy', emoji: '😊' },
+  { name: 'Excited', emoji: '🤩' },
 ];
 
+
 const MOOD_VALUES: Record<Mood, number> = {
-  'Stressed': 1,
-  'Sad': 2,
-  'Neutral': 3,
-  'Happy': 4,
-  'Excited': 5,
+  Stressed: 1,
+  Sad: 2,
+  Neutral: 3,
+  Happy: 4,
+  Excited: 5,
 };
 
 const MOOD_COLORS: Record<Mood, string> = {
-  'Excited': 'bg-yellow-400',
-  'Happy': 'bg-green-400',
-  'Neutral': 'bg-sky-400',
-  'Sad': 'bg-blue-500',
-  'Stressed': 'bg-red-500',
+  Excited: 'bg-yellow-400',
+  Happy: 'bg-green-400',
+  Neutral: 'bg-sky-400',
+  Sad: 'bg-blue-500',
+  Stressed: 'bg-red-500',
 };
 
 const getEnergyColor = (energy: number): string => {
@@ -41,19 +42,21 @@ interface MoodTrackerProps {
   disabled?: boolean;
 }
 
+// ------- Weekly Mood Chart -------
 const WeeklyMoodChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
   const today = new Date();
-  const weekData: ({ day: string, value: number, mood: Mood | null })[] = [];
-  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekData: { day: string; value: number; mood: Mood | null }[] = [];
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
     const dateString = date.toISOString().split('T')[0];
     const dayOfWeek = dayLabels[date.getDay()];
-    const log = logs.find(l => l.date === dateString);
+    const log = logs.find((l) => l.date === dateString);
 
-    if (log) weekData.push({ day: dayOfWeek, value: MOOD_VALUES[log.mood], mood: log.mood });
+    if (log)
+      weekData.push({ day: dayOfWeek, value: MOOD_VALUES[log.mood], mood: log.mood });
     else weekData.push({ day: dayOfWeek, value: 0, mood: null });
   }
 
@@ -64,22 +67,27 @@ const WeeklyMoodChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
       <h3 className="text-lg font-semibold text-slate-200 mb-2 text-center">Weekly Mood</h3>
       <div className="flex gap-2">
         <div className="flex flex-col-reverse justify-between h-32 text-lg text-center py-1 w-8">
-          {reversedMoods.map(m => <span key={m.name}>{m.emoji}</span>)}
+          {reversedMoods.map((m) => (
+            <span key={m.name}>{m.emoji}</span>
+          ))}
         </div>
         <div className="flex-grow flex flex-col h-32 bg-slate-900/50 p-3 rounded-lg">
           <div className="flex justify-between">
-            {weekData.map((d,i)=>(
-              <span key={i} className="flex-1 text-xs text-slate-400 text-center">{d.day}</span>
+            {weekData.map((d, i) => (
+              <span key={i} className="flex-1 text-xs text-slate-400 text-center">
+                {d.day}
+              </span>
             ))}
           </div>
           <div className="flex-grow flex justify-between items-end gap-2 border-t border-slate-700/50 mt-1 pt-1">
-            {weekData.map((d,i)=>{
+            {weekData.map((d, i) => {
               const barColor = d.mood ? MOOD_COLORS[d.mood] : 'bg-slate-700';
-              return(
+              return (
                 <div key={i} className="flex-1 h-full flex items-end">
-                  <div className={`w-full rounded-t-sm ${barColor}`}
-                    style={{height:`${(d.value||0)*20}%`}}>
-                  </div>
+                  <div
+                    className={`w-full rounded-t-sm ${barColor}`}
+                    style={{ height: `${(d.value || 0) * 20}%` }}
+                  ></div>
                 </div>
               );
             })}
@@ -90,43 +98,49 @@ const WeeklyMoodChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
   );
 };
 
+// ------- Weekly Energy Chart -------
 const WeeklyEnergyChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
   const today = new Date();
-  const weekData: ({ day: string; value: number })[] = [];
-  const dayLabels = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  const weekData: { day: string; value: number }[] = [];
+  const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   for (let i = 6; i >= 0; i--) {
     const date = new Date(today);
     date.setDate(today.getDate() - i);
     const dateString = date.toISOString().split('T')[0];
     const dayOfWeek = dayLabels[date.getDay()];
-    const log = logs.find(l => l.date === dateString);
+    const log = logs.find((l) => l.date === dateString);
     weekData.push({ day: dayOfWeek, value: log ? log.energy : 0 });
   }
 
-  const energyLabels = ['100','75','50','25','0'];
+  const energyLabels = ['100', '75', '50', '25', '0'];
 
   return (
     <div>
       <h3 className="text-lg font-semibold text-slate-200 mb-2 text-center">Weekly Energy</h3>
       <div className="flex gap-2">
         <div className="flex flex-col justify-between h-32 text-xs text-slate-400 text-right w-8 pr-1">
-          {energyLabels.map(l=> <span key={l}>{l}</span>)}
+          {energyLabels.map((l) => (
+            <span key={l}>{l}</span>
+          ))}
         </div>
         <div className="flex-grow flex flex-col h-32 bg-slate-900/50 p-3 rounded-lg">
           <div className="flex justify-between">
-            {weekData.map((d,i)=>(
-              <span key={i} className="flex-1 text-xs text-slate-400 text-center">{d.day}</span>
+            {weekData.map((d, i) => (
+              <span key={i} className="flex-1 text-xs text-slate-400 text-center">
+                {d.day}
+              </span>
             ))}
           </div>
           <div className="flex-grow flex justify-between items-end gap-2 border-t border-slate-700/50 mt-1 pt-1">
-            {weekData.map((d,i)=>{
+            {weekData.map((d, i) => {
               const barColor = d.value > 0 ? getEnergyColor(d.value) : 'bg-slate-700';
-              return(
+              return (
                 <div key={i} className="flex-1 h-full flex items-end">
-                  <div className={`w-full rounded-t-sm ${barColor}`}
-                    style={{height:`${d.value||0}%`}}>
-                  </div>
+                  <div
+                    className={`w-full rounded-t-sm ${barColor}`}
+                    style={{ height: `${d.value || 0}%` }}
+                  ></div>
                 </div>
               );
             })}
@@ -137,9 +151,101 @@ const WeeklyEnergyChart: React.FC<{ logs: DailyLog[] }> = ({ logs }) => {
   );
 };
 
+// ------- Main Component -------
 const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dailyLogs, disabled }) => {
   const [localMood, setLocalMood] = React.useState<Mood>(mood);
   const [localEnergy, setLocalEnergy] = React.useState<number>(energy);
+  const [aiOverview, setAiOverview] = React.useState<string | null>(null);
+  const [isOverviewLoading, setIsOverviewLoading] = React.useState(false);
+  const insightsRef = React.useRef<HTMLDivElement | null>(null);
+
+  const handleInsightsClick = async () => {
+  setIsOverviewLoading(true);
+
+  // Smooth scroll animation
+  setTimeout(() => {
+    insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 300);
+
+  try {
+    // --- Compute weekly mood & energy averages ---
+    const moodsWithValue = dailyLogs
+      .filter((l) => l.mood)
+      .map((l) => ({ mood: l.mood, value: MOOD_VALUES[l.mood] }));
+    const avgMood =
+      moodsWithValue.reduce((sum, m) => sum + m.value, 0) / (moodsWithValue.length || 1);
+
+    const avgEnergy =
+      dailyLogs.reduce((sum, l) => sum + (l.energy || 0), 0) / (dailyLogs.length || 1);
+
+    // --- Mock completed & upcoming tasks for now ---
+    // You can later hook these into your StudyLog data
+    const completedTasks = [
+      "Finished CS homework",
+      "Submitted design project",
+      "Reviewed math notes",
+    ];
+
+    const upcomingTasks = [
+      "Midterm exam on Wednesday",
+      "Hackathon project update due Friday",
+      "Essay draft submission next Monday",
+    ];
+
+    // --- Send to backend ---
+    const response = await fetch("http://localhost:5000/api/weekly-overview", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        avgMood,
+        avgEnergy,
+        completedTasks,
+        upcomingTasks,
+      }),
+    });
+
+    if (!response.ok) throw new Error(`Server error: ${response.status}`);
+    const data = await response.json();
+
+    setAiOverview(data.overview || "Could not generate insights.");
+  } catch (error) {
+    console.error("AI overview error:", error);
+    setAiOverview("Error generating insights. Please try again later.");
+  } finally {
+    setIsOverviewLoading(false);
+  }
+
+
+    // Smooth scroll
+    setTimeout(() => {
+      insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+
+    try {
+      const moodsWithValue = dailyLogs
+        .filter((l) => l.mood)
+        .map((l) => ({ mood: l.mood, value: MOOD_VALUES[l.mood] }));
+      const avgMood =
+        moodsWithValue.reduce((sum, m) => sum + m.value, 0) / (moodsWithValue.length || 1);
+
+      const avgEnergy =
+        dailyLogs.reduce((sum, l) => sum + (l.energy || 0), 0) / (dailyLogs.length || 1);
+
+      const response = await fetch('http://localhost:5000/api/weekly-overview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avgMood, avgEnergy }),
+      });
+
+      const data = await response.json();
+      setAiOverview(data.overview || 'Could not generate insights.');
+    } catch (error) {
+      console.error('AI overview error:', error);
+      setAiOverview('Error generating insights. Please try again later.');
+    } finally {
+      setIsOverviewLoading(false);
+    }
+  };
 
   return (
     <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">
@@ -147,22 +253,26 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
         <WeeklyMoodChart logs={dailyLogs} />
         <WeeklyEnergyChart logs={dailyLogs} />
 
+        {/* Today's Check-in */}
         <div className="bg-slate-900/50 p-4 rounded-lg space-y-6">
           <h3 className="text-lg font-semibold text-slate-200 text-center">Today's Check-in</h3>
-          
+
           <div>
-            <label className="block text-sm text-slate-400 mb-2 text-center">
-              How are you feeling?
-            </label>
+            <label className="block text-sm text-slate-400 mb-2 text-center">How are you feeling?</label>
             <div className="flex justify-around bg-slate-800 p-1 rounded-lg">
-              {MOODS.map(m => (
+              {MOODS.map((m) => (
                 <button
                   key={m.name}
                   onClick={() => setLocalMood(m.name)}
                   disabled={disabled}
-                  className={`p-2 text-2xl rounded-md transition-all 
-                    ${disabled ? 'opacity-40'
-                    : localMood===m.name?'bg-indigo-600 scale-110':'hover:bg-slate-700'}`}>
+                  className={`p-2 text-2xl rounded-md transition-all ${
+                    disabled
+                      ? 'opacity-40'
+                      : localMood === m.name
+                      ? 'bg-indigo-600 scale-110'
+                      : 'hover:bg-slate-700'
+                  }`}
+                >
                   {m.emoji}
                 </button>
               ))}
@@ -170,7 +280,8 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
 
             <button
               onClick={() => onCheckin(localMood, localEnergy)}
-              className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg">
+              className="mt-4 w-full bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 rounded-lg"
+            >
               Update Day Values
             </button>
           </div>
@@ -185,10 +296,43 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
               max="100"
               step="5"
               value={localEnergy}
-              onChange={e => setLocalEnergy(parseInt(e.target.value,10))}
+              onChange={(e) => setLocalEnergy(parseInt(e.target.value, 10))}
               className="w-full h-2 bg-slate-700 rounded-lg accent-indigo-500"
             />
           </div>
+        </div>
+
+        {/* Insights Trigger Button */}
+        <div className="flex justify-center">
+          <button
+            onClick={handleInsightsClick}
+            disabled={isOverviewLoading}
+            className="mt-6 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-800 text-white font-medium rounded-lg transition-all duration-300"
+          >
+            ✨ View Weekly Insights
+          </button>
+        </div>
+
+        {/* AI Insights Section */}
+        <div
+          ref={insightsRef}
+          className="bg-slate-900/60 border border-slate-700 rounded-xl p-4 mt-6 transition-all duration-700 ease-in-out"
+        >
+          <h2 className="text-lg font-semibold text-indigo-300 mb-2 flex items-center">
+            <span className="mr-2">💫</span> Weekly AI Insights
+          </h2>
+
+          {isOverviewLoading ? (
+            <p className="text-slate-400 italic animate-pulse">Analyzing your week...</p>
+          ) : aiOverview ? (
+            <p className="text-slate-300 leading-relaxed transition-all duration-700 ease-out">
+              {aiOverview}
+            </p>
+          ) : (
+            <p className="text-slate-500 italic">
+              Click "View Weekly Insights" to get a personalized reflection for this week.
+            </p>
+          )}
         </div>
       </div>
     </div>
