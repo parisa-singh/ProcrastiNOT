@@ -1,9 +1,11 @@
+// ===== Imports =====
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { google } from "googleapis";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+// ===== Setup =====
 dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -11,12 +13,14 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+// ===== Google OAuth Setup =====
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
   process.env.GOOGLE_REDIRECT_URI
 );
 
+// ===== Auth Routes =====
 app.get("/auth/status", (req, res) => {
   if (oauth2Client.credentials && oauth2Client.credentials.access_token) {
     return res.json({ authenticated: true });
@@ -61,8 +65,10 @@ app.get("/events", async (req, res) => {
   }
 });
 
+// ===== Gemini API Setup =====
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
+// ===== General Gemini Prompt Route =====
 app.post("/api/gemini", async (req, res) => {
   try {
     const { prompt, model } = req.body;
@@ -85,6 +91,7 @@ app.post("/api/gemini", async (req, res) => {
   }
 });
 
+// ===== Weekly Overview Route =====
 app.post("/api/weekly-overview", async (req, res) => {
   const { avgMood, avgEnergy, completedTasks = [], upcomingTasks = [] } =
     req.body;
@@ -113,52 +120,67 @@ Include:
 - A brief recognition of what they completed this week.
 - A motivational note for next week.
 Tone: gentle, conversational, hopeful.
-Return only plain text (no markdown or emojis).
+Return only plain text (no markdown, no emojis, no JSON).
 Keep it under 1000 characters.
 `;
 
   try {
-    const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash-latest",
-    });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
 
     const result = await model.generateContent(prompt);
 
     let text = "No insights available.";
 
-    if (result?.response?.text) {
+    // ✅ Handle both text and JSON responses
+    if (typeof result?.response?.text === "function") {
       text = result.response.text();
     } else if (
       result?.response?.candidates?.[0]?.content?.parts?.[0]?.text
     ) {
-      text = result.response.candidates[0].content.parts[0].text;
+      const raw = result.response.candidates[0].content.parts[0].text.trim();
+
+      // Detect if the output looks like JSON
+      if (raw.startsWith("{") && raw.endsWith("}")) {
+        try {
+          const parsed = JSON.parse(raw);
+          text =
+            parsed.overview ||
+            parsed.summary ||
+            parsed.message ||
+            "AI returned structured data instead of text.";
+        } catch {
+          text = raw;
+        }
+      } else {
+        text = raw;
+      }
     }
 
+    // Clean formatting and truncate if needed
     text = text.replace(/^```[\s\S]*?```$/gm, "").trim();
     if (text.length > 1000) text = text.slice(0, 1000) + "...";
 
+    console.log("✅ Gemini Weekly Overview Generated:", text.slice(0, 120));
     res.status(200).json({ overview: text });
   } catch (err) {
     console.error("❌ Gemini weekly overview error:", err);
-
     if (err.response) {
       try {
-        console.error(
-          "🔍 Gemini API Error Details:",
-          await err.response.text()
-        );
-      } catch (innerErr) {
-        console.error("⚠️ Could not read Gemini error details:", innerErr);
+        console.error("🔍 Gemini API Error Details:", await err.response.text());
+      } catch {
+        console.error("⚠️ Could not read Gemini error details.");
       }
     }
 
     res.status(500).json({
       error: "Failed to generate AI insights",
-      details: err.stack || err.message || JSON.stringify(err),
+      details: err.message || err.stack,
     });
   }
 });
 
+// ===== Start Server =====
 app.listen(PORT, () => {
   console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
