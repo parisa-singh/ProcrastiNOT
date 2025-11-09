@@ -16,6 +16,11 @@ import { BrainIcon } from './components/icons/BrainIcon';
 import MoodTracker from './components/MoodTracker';
 import StudyLogForm from './components/PastDataForm';
 import { TrashIcon } from './components/icons/TrashIcon';
+import StarfieldBackground from './components/StarfieldBackground';
+import { useXP } from "./hooks/useXP";
+import XPDisplay from "./components/XPDisplay";
+
+
 
 
 // --- helpers ---
@@ -135,6 +140,7 @@ const StudyLogView: React.FC<StudyLogViewProps> = ({
 };
 
 function App() {
+  const { xp, level, progress, awardXP } = useXP();
 
   const [theme, setTheme] = useState<{
     primary: string;
@@ -320,8 +326,21 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
   };
 
   const toggleTaskCompletion = (id: string) => {
-    setTasks((prev) => prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t)));
-  };
+  setTasks((prev) =>
+    prev.map((t) => {
+      if (t.id === id) {
+        const updated = { ...t, completed: !t.completed };
+        if (!t.completed && updated.completed) {
+          // Task was just completed → award XP
+          awardXP(10, "Completing a task");
+        }
+        return updated;
+      }
+      return t;
+    })
+  );
+};
+
 
   const addStudyLog = (log: Omit<StudyLogEntry, 'id'>) => {
     setStudyLogs((prev) => [...prev, { ...log, id: uuidv4() }]);
@@ -394,27 +413,42 @@ const handleGoToToday = () => {
 
   // ---------- render ----------
   return (
-    <div className="bg-slate-900 text-slate-300 min-h-screen font-sans">
-      <header className="py-5 px-8 bg-slate-900/80 backdrop-blur-sm border-b border-slate-800">
-        <div className="max-w-[90rem] mx-auto flex items-center justify-between">
-          <h1 className="text-xl font-bold text-slate-100 flex items-center gap-3">
-            <img
-              src="/computer.png"
-              alt="ProcrastiNOT Logo"
-              className="w-20 h-20 rounded-md"
-            />
-            <span>ProcrastiNOT</span>
-          </h1>
-          {currentView === 'main' && (
-            <button
-              onClick={() => setCurrentView('details')}
-              className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-semibold transition-colors"
-            >
-              Expand View
-            </button>
-          )}
-        </div>
-      </header>
+  <div className="relative min-h-screen overflow-hidden">
+    <StarfieldBackground /> 
+    <div className="bg-slate-900 text-slate-300 min-h-screen font-sans relative z-10">
+      <header className="py-4 px-8 bg-slate-900/80 border-b border-slate-800">
+  <div className="max-w-[90rem] mx-auto grid grid-cols-3 items-center">
+    {/* Left: Logo */}
+    <div className="flex items-center gap-3">
+      <img
+        src="./public/laughing.png"
+        alt="ProcrastiNOT Logo"
+        className="w-30 h-20 rounded-full"
+      />
+      <h1 className="text-2xl font-bold text-slate-100">ProcrastiNOT</h1>
+    </div>
+
+    {/* Center: XP display */}
+    <div className="flex justify-center">
+      <XPDisplay xp={xp} level={level} progress={progress} />
+    </div>
+
+    {/* Right: Expand button */}
+    <div className="flex justify-end">
+      {currentView === "main" && (
+        <button
+          onClick={() => setCurrentView("details")}
+          className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg text-sm font-semibold transition-colors"
+        >
+          Expand View
+        </button>
+      )}
+    </div>
+  </div>
+</header>
+
+
+
 
       {currentView === 'main' ? (
         <main className="p-4 md:p-6">
@@ -659,8 +693,10 @@ const handleGoToToday = () => {
           </div>
         </main>
       )}
+      </div>
     </div>
   );
 }
 
 export default App;
+
