@@ -160,13 +160,40 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
   const insightsRef = React.useRef<HTMLDivElement | null>(null);
 
   const handleInsightsClick = async () => {
-  setIsOverviewLoading(true);
+    setIsOverviewLoading(true);
 
-  // Smooth scroll animation
-  setTimeout(() => {
-    insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 300);
+    // Smooth scroll animation
+    setTimeout(() => {
+      insightsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
 
+    try {
+      const moodsWithValue = dailyLogs
+        .filter((l) => l.mood)
+        .map((l) => ({ mood: l.mood, value: MOOD_VALUES[l.mood] }));
+      const avgMood =
+        moodsWithValue.reduce((sum, m) => sum + m.value, 0) / (moodsWithValue.length || 1);
+
+      const avgEnergy =
+        dailyLogs.reduce((sum, l) => sum + (l.energy || 0), 0) / (dailyLogs.length || 1);
+
+      const response = await fetch('http://localhost:5000/api/weekly-overview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avgMood, avgEnergy }),
+      });
+
+      const data = await response.json();
+      setAiOverview(data.overview || 'Could not generate insights.');
+    } catch (error) {
+      console.error('AI overview error:', error);
+      setAiOverview('Error generating insights. Please try again later.');
+    } finally {
+      setIsOverviewLoading(false);
+    }
+  };
+
+  /*
   try {
     // --- Compute weekly mood & energy averages ---
     const moodsWithValue = dailyLogs
@@ -207,13 +234,13 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
     if (!response.ok) throw new Error(`Server error: ${response.status}`);
     const data = await response.json();
 
-    setAiOverview(data.overview || "Could not generate insights.");
+    setAiOverview(data.overview || "Could not generate insights."); 
   } catch (error) {
     console.error("AI overview error:", error);
     setAiOverview("Error generating insights. Please try again later.");
   } finally {
     setIsOverviewLoading(false);
-  }
+  } 
 
 
     // Smooth scroll
@@ -245,7 +272,7 @@ const MoodTracker: React.FC<MoodTrackerProps> = ({ mood, energy, onCheckin, dail
     } finally {
       setIsOverviewLoading(false);
     }
-  };
+  }; */
 
   return (
     <div className="bg-slate-800 p-6 rounded-xl border border-slate-700">

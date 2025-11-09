@@ -55,33 +55,77 @@ export async function generateWeeklySchedule(
   mood: Mood,
   energyLevel: number, 
   calendarEvents: CalendarEvent[],
-  weekStartDate: string
+  weekStartDate: string,
+  weeklyTrend: {date:string, mood:Mood|null, energy:number|null}[]
 ): Promise<WeeklySchedule> {
-  const prompt = `
-You are an expert academic coach and weekly planner for a college student. Your task is to create a personalized, effective, and empathetic 7-day study schedule, starting from Sunday.
 
-The schedule you generate MUST be aligned with the week that begins on this exact date (ISO format): ${weekStartDate}
+const trendLines = (weeklyTrend ?? [])
+  .map((d: {date:string; mood: Mood|null; energy: number|null}) =>
+    `${d.date}: mood=${d.mood ?? "none"}, energy=${d.energy ?? "none"}`
+  )
+  .join("\n");
 
-**Current User State:**
-- Today's Mood: ${mood}
-- Today's Energy Level: ${energyLevel}/100
+const compactTasks = tasks.slice(0,5).map(t => ({
+  n: t.name,
+  d: t.expectedDuration,
+  i: t.importance
+}))
 
-**User's Goals & Tasks:**
-- Weekly Study Goal: ${weeklyGoal} hours
-- Full Task List (with completion status and deadlines):
-${formatTasks(tasks)}
 
-**Existing Commitments from User's Calendar:**
-${formatCalendarEvents(calendarEvents)}
+const prompt = `
+You are an expert academic coach and weekly planner for a college student. Create a personalized, realistic, and empathetic **7-day schedule** starting **Sunday** for the week that begins on: ${weekStartDate} (ISO). Use the constraints below exactly.
 
-**Instructions:**
-1. **Analyze and Empathize:** Acknowledge the user's current mood and energy. If energy is low, start today's schedule gently. If they're stressed, build in more breaks. If excited, leverage that momentum on important tasks.
-2. **Prioritize & Schedule Around Commitments:** Plan the entire week starting from Sunday. Crucially, you must block out time for the user's existing commitments from their calendar and schedule all study sessions and breaks around them. Pay close attention to items marked as DEADLINE and schedule them to be completed well before they are due. When you schedule a study block for a DEADLINE task, you MUST use the type 'deadline_work' for that schedule item. Then, schedule the highest importance tasks. Distribute tasks logically across the 7 days.
-3. **Balance:** Distribute the weekly study goal across the week. Avoid overloading any single day. Factor in that weekends might be for lighter work or catching up.
-4. **Structure:** Create a daily plan with focused study blocks (45–60 mins) and regular short breaks (10–15 mins). Include a longer lunch break.
-5. **Be Realistic:** The schedule must be achievable. Don't schedule back-to-back heavy cognitive tasks. Alternate between different subjects or types of work. Do not schedule tasks that overlap with existing calendar commitments.
-6. **Output:** Return a complete 7-day schedule as a JSON object with keys for "sunday" through "saturday". Ensure every day has a schedule, even if it's just "Rest Day" or light work.
+########################
+# CURRENT USER CONTEXT #
+########################
+Today's Mood: ${mood}
+Today's Energy Level: ${energyLevel}/100
+
+Weekly Mood/Energy Trend (last 7 days; per-day):
+${trendLines || "no historical entries"}
+
+Weekly Study Goal (hours): ${weeklyGoal}
+
+Top 5 priority tasks this week:
+${compactTasks.map(t => `- ${t.n} (${t.d}m, ${t.i})`).join("\n")}
+
+Number of blocked calendar events this week: ${calendarEvents.length}
+
+
+########################
+# SCHEDULING RULES
+########################
+• Use mood/energy trend to pace load: push harder tasks earlier in week if energy higher Tue/Wed, lighten Thu/Fri if trend dips.
+• DEADLINE tasks must be worked on earlier in week (never leave them to last day).
+• Respect existing calendar events — never overlap with them.
+• Daily time range allowed: 07:00–24:00 only.
+• Time must be 24-hour HH:MM + 15-minute increments only.
+• Blocks should be realistic lengths:
+   - study/deadline_work: 45–60 min typical (30–90 only if needed)
+   - break: 10–20 min
+   - lunch/meal: 45–75 min
+• If a day is light, add 1 small restorative or review block.
+• allowed "type": study | deadline_work | break | meal | personal | personal_time | class | event
+
+########################
+# OUTPUT FORMAT (STRICT)
+########################
+Return ONLY valid JSON, no text around it.
+Keys: "sunday" through "saturday".
+Each day object MUST be:
+{
+  "date": "YYYY-MM-DD",
+  "schedule": [
+    { "start_time": "HH:MM", "end_time": "HH:MM", "task": "<string>", "type": "<type>" }
+  ]
+}
+Times must never overlap within a day.
+Do not include any commentary or markdown.
+The JSON must parse cleanly.
+
+Now generate the final JSON for the week starting ${weekStartDate}.
 `;
+
 
   try {
     const response = await fetch("http://localhost:5000/api/gemini", {
@@ -89,7 +133,7 @@ ${formatCalendarEvents(calendarEvents)}
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        model: "gemini-2.5-pro",
+        model: "models/gemini-2.5-flash",
       }),
     });
 
@@ -155,7 +199,7 @@ ${formatStudyLogs(logs)}
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         prompt,
-        model: "gemini-2.5-flash",
+        model: "models/gemini-2.5-flash",
       }),
     });
 

@@ -234,13 +234,32 @@ const handleGenerateSchedule = async (eventsOverride?: CalendarEvent[]): Promise
 
     const weekEvents = filterEventsForWeek(eventsToUse, currentWeekStart);
 
+    function generateMoodEnergyTrend(dailyLogs: DailyLog[], weekStart: Date) {
+      const logsForWeek = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(weekStart);
+        d.setDate(d.getDate() + i);
+        const dateString = d.toISOString().split("T")[0];
+        const entry = dailyLogs.find(l => l.date === dateString);
+        logsForWeek.push({
+        date: dateString,
+        mood: entry?.mood ?? null,
+        energy: entry?.energy ?? null,
+    });
+  }
+  return logsForWeek;
+}
+
+    const weeklyTrend = generateMoodEnergyTrend(dailyLogs, currentWeekStart);
+
     const generatedSchedule = await generateWeeklySchedule(
       tasks,
       weeklyGoal,
       mood,
       energyLevel,
       weekEvents,
-      currentWeekStart.toISOString() 
+      currentWeekStart.toISOString(),
+      weeklyTrend,
     )
 
 

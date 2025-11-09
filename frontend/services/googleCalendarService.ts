@@ -1,3 +1,4 @@
+/*
 import type { CalendarEvent } from "../types";
 
 // Make sure the Google API script is loaded in your index.html
@@ -10,7 +11,7 @@ const SCOPES = "https://www.googleapis.com/auth/calendar.readonly";
 
 /**
  * Sign in with Google and fetch the next 7 days of calendar events.
- */
+ 
 export async function signInAndFetchEvents(): Promise<CalendarEvent[]> {
     
     console.log("gapi is:", typeof gapi);
@@ -64,3 +65,4 @@ export async function signInAndFetchEvents(): Promise<CalendarEvent[]> {
         });
     });
 }
+*/

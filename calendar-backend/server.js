@@ -75,7 +75,7 @@ app.post("/api/gemini", async (req, res) => {
     console.log("🧠 Received Gemini prompt:", prompt?.slice(0, 100));
 
     const aiModel = genAI.getGenerativeModel({
-      model: model || "gemini-2.0-pro",
+      model: model || "models/gemini-2.5-flash",
     });
 
     const result = await aiModel.generateContent(prompt);
@@ -125,7 +125,7 @@ Keep it under 1000 characters.
 `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "models/gemini-2.5-flash" });
 
 
     const result = await model.generateContent(prompt);
